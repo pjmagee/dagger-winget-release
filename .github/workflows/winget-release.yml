@@ -1,0 +1,67 @@
+name: Dagger for Windows on WinGet
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      run_windows_stage:
+        description: "Run the Windows stage"
+        required: false
+        default: "false"
+
+jobs:
+  create-powershell-script:
+    name: Generate PowerShell Script
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Run Dagger to Create PowerShell Script
+        id: dagger
+        uses: dagger/dagger-for-github@v6.13.0
+        with:
+            version: "latest"
+            verb: "call"
+            args: "create-winget-command > cli-command.txt"
+            cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - name: Save cli cmd to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-command
+          path: cli-command.txt
+
+  execute-on-windows:
+    name: Execute PowerShell Script on Windows
+    needs: create-powershell-script
+    runs-on: windows-latest
+    if: ${{ inputs.run_windows_stage == 'true' }} # Condition to disable this stage
+
+    steps:
+      - name: Download PowerShell Script
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-command
+
+      - name: Install Winget via Chocolatey
+        run: |
+          choco install winget -y
+        shell: powershell
+
+      - name: Install WingetCreate CLI Tool
+        run: |
+          Start-Process -FilePath "C:\\ProgramData\\chocolatey\\lib\\winget\\tools\\winget.exe" -ArgumentList "install Microsoft.WingetCreate -e --silent --accept-source-agreements --accept-package-agreements" -Wait
+        shell: powershell
+
+      - name: Execute PowerShell Script
+        run: |
+          $scriptContent = Get-Content -Path "cli-command" -Raw
+          Invoke-Expression $scriptContent
+        shell: powershell
