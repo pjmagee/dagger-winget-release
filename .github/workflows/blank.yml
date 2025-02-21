@@ -1,0 +1,43 @@
+name: Winget Create Dispatch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Create Winget Script
+        uses: dagger/dagger-for-github@v7.0.6
+        id: generate-script
+        with:         
+          module: github.com/pjmagee/daggerverse/winget-release
+          call: create-winget-command --submit --tokenPlaceholder > winget-script.ps1
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - name: Upload Script
+        uses: actions/upload-artifact@v3
+        with:
+          name: winget-script
+          path: ./winget-script.ps1
+
+  execute-script:
+    runs-on: windows-latest
+    needs: generate-script
+    env:
+      WINGETCREATE_TOKEN: ${{ secrets.WINGETCREATE_TOKEN }}
+    steps:
+      - name: Download Script
+        uses: actions/download-artifact@v3
+        with:
+          name: winget-script
+          path: ./        
+          
+      - name: Execute Winget Script
+        shell: pwsh
+        run: |          
+          & curl.exe -JLO https://aka.ms/wingetcreate/latest
+          .\winget-script.ps1 
