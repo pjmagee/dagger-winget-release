@@ -19,7 +19,7 @@ jobs:
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - name: Upload Script
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: winget-script
           path: ./winget-script.ps1
@@ -31,7 +31,7 @@ jobs:
       WINGETCREATE_TOKEN: ${{ secrets.WINGETCREATE_TOKEN }}
     steps:
       - name: Download Script
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: winget-script
           path: ./        
